@@ -1,5 +1,8 @@
 # HubcapUI Plugins
 
+> [!WARNING]
+> **Alpha software — expect bugs.** These plugins are in active development. Features may be incomplete or behave unexpectedly.
+
 Independent plugins for [HubcapUI](https://github.com/oogiefied/HubcapUI).
 
 | Plugin | DLL | Purpose |

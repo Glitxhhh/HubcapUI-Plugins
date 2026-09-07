@@ -1,5 +1,8 @@
 # Hubcap RenoDX Plugin
 
+> [!WARNING]
+> **Alpha software — expect bugs.** These plugins are in active development. Features may be incomplete or behave unexpectedly.
+
 RenoDX automatically detects supported games in your Steam library by matching them against the latest RenoDX compatibility list. Library badges make those games easy to spot; green badges show where RenoDX is enabled.
 
 ![RenoDX badges beside games in the Steam library](../docs/images/renodx-library-badges.png)
