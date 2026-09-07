@@ -30,9 +30,11 @@ OptiScaler brings a similar one-click installation experience to supported games
 
 ## Install
 
-Download the DLLs you want from [Releases](https://github.com/YaBoiDaddy/HubcapUI-Plugins/releases/latest). Fully exit Steam, copy them into `Steam/hubcapui-plugins`, then restart Steam. Enable the plugin system and your selected plugins in Hubcap Settings, save, and restart when prompted.
+Download the DLLs you want from [Releases](https://github.com/YaBoi69er/HubcapUI-Plugins/releases/latest). Fully exit Steam, copy them into `Steam/hubcapui-plugins`, then restart Steam. Enable the plugin system and your selected plugins in Hubcap Settings, save, and restart when prompted.
 
 ## Automatic updates
+
+**Moving from v0.1.1?** Install v0.1.2 manually once to switch to the renamed `YaBoi69er/HubcapUI-Plugins` update source. Later plugin releases can update automatically on a compatible host.
 
 These plugins declare their own update source. A Hubcap host that implements the [plugin update standard](docs/plugin-updates.md) checks for stable GitHub releases in the background and installs verified DLLs before loading plugins on the next Steam restart. Plugin releases are independent of the main Hubcap DLL. Older hosts can continue using manual DLL installation.
 

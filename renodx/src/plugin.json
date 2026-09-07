@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "id": "hubcap.renodx",
   "name": "RenoDX",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "order": 100,
   "description": "Detects, installs, configures, and removes RenoDX modifications.",
   "update": {
-    "repository": "YaBoiDaddy/HubcapUI-Plugins",
+    "repository": "YaBoi69er/HubcapUI-Plugins",
     "asset": "renodx.dll"
   }
 }

@@ -7,6 +7,6 @@ foreach ($plugin in @('renodx','optiscaler')) {
     $manifest = Get-Content (Join-Path $root "$plugin/src/plugin.json") -Raw | ConvertFrom-Json
     $source = Get-Content (Join-Path $root "$plugin/src/plugin.cpp") -Raw
     if ($manifest.version -ne $version -or -not $source.Contains('plugin->version = "' + $version + '"')) { throw "Version mismatch: $plugin" }
-    if ($manifest.update.repository -ne 'YaBoiDaddy/HubcapUI-Plugins' -or $manifest.update.asset -ne "$plugin.dll") { throw "Update source mismatch: $plugin" }
+    if ($manifest.update.repository -ne 'YaBoi69er/HubcapUI-Plugins' -or $manifest.update.asset -ne "$plugin.dll") { throw "Update source mismatch: $plugin" }
 }
 Write-Host "Release metadata verified: v$version"

@@ -81,7 +81,7 @@ extern "C" __declspec(dllexport) bool HUBCAP_PLUGIN_CALL HubcapPluginInitializeV
     plugin->abi_version = HUBCAP_PLUGIN_ABI_VERSION;
     plugin->id = "hubcap.optiscaler";
     plugin->name = "OptiScaler";
-    plugin->version = "0.1.1";
+    plugin->version = "0.1.2";
     plugin->description = "Detects, installs, configures, and removes OptiScaler.";
     plugin->ui_script = k_ui;
     plugin->handle = handle;
