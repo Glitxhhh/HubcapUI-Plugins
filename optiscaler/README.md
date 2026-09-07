@@ -1,5 +1,9 @@
 # Hubcap OptiScaler Plugin
 
+OptiScaler brings a similar one-click installation experience to supported games. Open **Game Settings → Enable OptiScaler** to start setup directly from your Steam library, without manually placing the OptiScaler files in the game folder.
+
+![Game Settings showing the Enable OptiScaler option](../docs/images/optiscaler-game-settings.png)
+
 Self-contained working directory for `hubcap.optiscaler`. Its manifest, JavaScript UI, and SVG assets are embedded into the resulting `optiscaler.dll`.
 
 ## Layout

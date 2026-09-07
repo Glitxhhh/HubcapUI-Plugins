@@ -1,5 +1,15 @@
 # Hubcap RenoDX Plugin
 
+RenoDX automatically detects supported games in your Steam library by matching them against the latest RenoDX compatibility list. Library badges make those games easy to spot; green badges show where RenoDX is enabled.
+
+![RenoDX badges beside games in the Steam library](../docs/images/renodx-library-badges.png)
+
+Open **Game Settings → Enable RenoDX** for a one-click installation workflow. The plugin handles the RenoDX mod, the required ReShade build, and supported profile settings. Once installed, the same menu offers **Remove RenoDX**, as shown below.
+
+![Game Settings showing an installed RenoDX mod and its removal option](../docs/images/renodx-game-settings.png)
+
+Mods hosted exclusively on Nexus Mods or Discord may require an additional download step.
+
 Self-contained working directory for `hubcap.renodx`. Its manifest, JavaScript UI, and SVG assets are embedded into the resulting `renodx.dll`.
 
 ## Layout
