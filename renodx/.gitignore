@@ -1,0 +1,5 @@
+/dist/
+/obj/
+*.user
+*.suo
+.vs/

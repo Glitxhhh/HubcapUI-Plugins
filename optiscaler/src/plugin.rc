@@ -1,0 +1,3 @@
+#include <windows.h>
+#include "hubcap_plugin.h"
+HUBCAP_PLUGIN_MANIFEST_RESOURCE_ID RCDATA "plugin.json"

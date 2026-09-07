@@ -1,0 +1,32 @@
+name: Release plugins
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify release metadata
+        shell: pwsh
+        run: ./scripts/verify-release.ps1
+      - name: Build plugins
+        shell: pwsh
+        run: ./build-all.ps1
+      - name: Test RenoDX refresh behavior
+        shell: pwsh
+        run: |
+          node renodx/tests/catalog-ui.test.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'UI tests failed' }
+          ./renodx/tests/run-catalog-tests.ps1
+      - name: Publish plugin DLLs
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$env:GITHUB_REF_NAME" renodx/dist/renodx.dll optiscaler/dist/optiscaler.dll THIRD_PARTY_NOTICES.md --verify-tag --generate-notes --title "HubcapUI Plugins $env:GITHUB_REF_NAME"
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }

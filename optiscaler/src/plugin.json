@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "hubcap.optiscaler",
+  "name": "OptiScaler",
+  "version": "0.1.1",
+  "order": 110,
+  "description": "Detects, installs, configures, and removes OptiScaler.",
+  "update": {
+    "repository": "YaBoiDaddy/HubcapUI-Plugins",
+    "asset": "optiscaler.dll"
+  }
+}
