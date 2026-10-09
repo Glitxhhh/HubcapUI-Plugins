@@ -42,7 +42,17 @@ The initial host support is being developed against upstream HubcapUI v1.0.9; in
 
 RenoDX also refreshes its compatibility list from the RenoDX wiki; that is separate from updating the plugin DLL.
 
-## Build
+## Develop your own plugin
+
+Start with the [Hello Hubcap template](examples/hello-hubcap/) and [plugin development guide](docs/plugin-development.md). They include the [native ABI v1 SDK](sdk/hubcap_plugin.h), an embedded manifest, a Library menu action, JSON commands, and a shared confirmation dialog. The example builds separately from RenoDX and OptiScaler.
+
+```powershell
+./scripts/test-plugin-template.ps1
+```
+
+This builds and checks the example DLL and its embedded UI without installing into Steam. See the guide for prerequisites, manual testing, and publishing plugins from your own repository.
+
+## Build existing plugins
 
 Use Windows x64, PowerShell 7, and Visual Studio C++ Build Tools with the Windows SDK:
 
@@ -54,6 +64,6 @@ Each plugin builds independently with `./scripts/build.ps1` from its directory. 
 
 ## Release
 
-Set root `VERSION`, every embedded `src/plugin.json` version, and every plugin's runtime version to the same semantic version. Run `./scripts/verify-release.ps1`. Push a `vX.Y.Z` tag; the release workflow builds both DLLs and publishes them with dependency notices. The updater uses GitHub's SHA-256 asset digests, not a mutable checksum file.
+Set root `VERSION` and the RenoDX and OptiScaler embedded `src/plugin.json` and runtime versions to the same semantic version. Run `./scripts/verify-release.ps1`. Push a `vX.Y.Z` tag; the release workflow builds both DLLs and publishes them with dependency notices. The example template keeps its own version and is not published by this workflow. The updater uses GitHub's SHA-256 asset digests, not a mutable checksum file.
 
 See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for bundled dependencies. RenoDX, ReShade, and OptiScaler game modifications are obtained separately by their respective plugins.
