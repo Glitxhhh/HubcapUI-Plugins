@@ -23,6 +23,10 @@ $resourceObject = Join-Path $objects "plugin.res"
 $minizNames = @("miniz","miniz_tdef","miniz_tinfl","miniz_zip")
 $minizObjects = $minizNames | ForEach-Object { Join-Path $objects "$_.obj" }
 $commands = @(
+    # Trim the inherited PATH before calling vcvars64.bat. vcvars64.bat prepends its
+    # own entries onto %PATH%, and on a machine with an already-large PATH that SET
+    # line can exceed cmd.exe's 8191-character limit ("The input line is too long.").
+    "set `"PATH=%SystemRoot%\System32;%SystemRoot%;%SystemRoot%\System32\Wbem;%SystemRoot%\System32\WindowsPowerShell\v1.0`"",
     "call `"$($vcvars.FullName)`" >NUL",
     "cl /nologo /c /O2 /EHsc /std:c++17 /D_WIN32 /D_WINDOWS /DHUBCAP_UI_VERSION=\`"$HostVersion\`" /I`"$sdk`" /I`"$source`" /I`"$thirdParty`" `"$(Join-Path $source 'feature_engine.cpp')`" /Fo:`"$engineObject`"",
     "if errorlevel 1 exit /b %errorlevel%",

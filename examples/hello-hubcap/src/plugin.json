@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "example.hello-hubcap",
+  "name": "Hello Hubcap",
+  "version": "0.1.0",
+  "description": "A minimal native plugin and Steam Library UI example.",
+  "order": 1000
+}
