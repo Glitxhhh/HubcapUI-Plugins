@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "hubcap.dlsstweaks",
+  "name": "DLSSTweaks",
+  "version": "0.1.0",
+  "description": "Installs emoose's DLSSTweaks (force DLAA, custom scaling ratios, DLSS presets) into a selected Steam game via Nexus Mods.",
+  "order": 200
+}
