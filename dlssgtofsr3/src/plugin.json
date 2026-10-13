@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "hubcap.dlssgtofsr3",
+  "name": "dlssg-to-fsr3",
+  "version": "0.1.0",
+  "description": "Installs Nukem's dlssg-to-fsr3 (replace Nvidia DLSS Frame Gen with AMD FSR 3 Frame Gen) into a selected Steam game via Nexus Mods. Automatically picks the DLSSTweaks Edition build when DLSSTweaks is installed for that game, or the Universal build otherwise.",
+  "order": 210
+}

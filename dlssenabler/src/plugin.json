@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "hubcap.dlssenabler",
+  "name": "DLSS Enabler",
+  "version": "0.1.0",
+  "description": "Installs artur07305's DLSS Enabler (DLSS Multi-Frame Generation on any DX12 GPU) into a selected Steam game via Nexus Mods.",
+  "order": 220
+}
