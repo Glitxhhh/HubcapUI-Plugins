@@ -17,17 +17,13 @@ RenoDX automatically detects supported games in your Steam library by matching t
 
 ![RenoDX badges beside games in the Steam library](docs/images/renodx-library-badges.png)
 
-Open **Game Settings → Enable RenoDX** for a one-click installation workflow. The plugin handles the RenoDX mod, the required ReShade build, and supported profile settings. Once installed, the same menu offers **Remove RenoDX**, as shown below.
-
-![Game Settings showing an installed RenoDX mod and its removal option](docs/images/renodx-game-settings.png)
+Right-click a compatible game in your Steam library and open **Manage → Enable RenoDX** for a one-click installation workflow. The plugin handles the RenoDX mod, the required ReShade build, and supported profile settings. Once installed, the same submenu offers **Remove RenoDX**.
 
 Mods hosted exclusively on Nexus Mods or Discord may require an additional download step.
 
 ## OptiScaler
 
-OptiScaler brings a similar one-click installation experience to supported games. Open **Game Settings → Enable OptiScaler** to start setup directly from your Steam library, without manually placing the OptiScaler files in the game folder.
-
-![Game Settings showing the Enable OptiScaler option](docs/images/optiscaler-game-settings.png)
+OptiScaler brings a similar one-click installation experience to any installed game. Right-click it in your Steam library and open **Manage → Enable OptiScaler** to start setup directly, without manually placing the OptiScaler files in the game folder.
 
 ## DLSS Suite
 
