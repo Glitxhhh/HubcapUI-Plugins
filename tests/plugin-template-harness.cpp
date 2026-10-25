@@ -12,7 +12,7 @@
 #include "yyjson.h"
 
 static_assert(sizeof(void*) == 8, "The host and plugin must use AMD64.");
-static_assert(sizeof(HubcapPluginHostV1) == 32, "Host ABI layout changed.");
+static_assert(sizeof(HubcapPluginHostV1) == 40, "Host ABI layout changed.");
 static_assert(sizeof(HubcapPluginV1) == 72, "Plugin ABI layout changed.");
 
 namespace {

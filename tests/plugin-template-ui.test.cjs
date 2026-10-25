@@ -6,12 +6,11 @@ const vm = require('node:vm');
 const script = fs.readFileSync(process.argv[2], 'utf8');
 const ID = 'example.hello-hubcap';
 function setup(hostOptions = {}) {
-    let app = '123', onResult, interval, nextId = 0;
-    const settings = [], states = [], sends = [], timers = new Map();
+    let onResult, nextId = 0;
+    const entries = [], states = [], sends = [], timers = new Map();
     const host = {
         version: 1,
-        libraryAppId: () => app,
-        setGameSetting: (...args) => settings.push(args),
+        setManageMenuEntry: (...args) => entries.push(args),
         onResult: (id, callback) => { assert.equal(id, ID); onResult = callback; },
         showConfirm: (options, callback) => { host.confirm = { options, callback }; },
         setModalState: (...args) => states.push(args),
@@ -20,27 +19,29 @@ function setup(hostOptions = {}) {
     };
     const context = vm.createContext({
         HubcapPluginHost: host,
-        setInterval: callback => { interval = callback; },
         setTimeout: callback => { const id = timers.size + 1; timers.set(id, callback); return id; },
         clearTimeout: id => timers.delete(id)
     });
     vm.runInContext(script, context);
-    return { host, context, settings, states, sends, timers,
-        changeApp: value => { app = value; interval(); },
+    return { host, context, entries, states, sends, timers,
         result: (response, id = `request-${nextId}`) => onResult(response, { replyTo: id }) };
 }
 
 vm.runInNewContext(script, {}); // Older or absent bridge must be harmless.
-assert.equal(setup({ version: 2 }).settings.length, 0);
-assert.equal(setup({ send: undefined }).settings.length, 0);
+assert.equal(setup({ version: 2 }).entries.length, 0);
+assert.equal(setup({ send: undefined }).entries.length, 0);
+assert.equal(setup({ setManageMenuEntry: undefined }).entries.length, 0, 'Missing setManageMenuEntry must be a harmless no-op, not a throw');
 const ui = setup();
-assert.equal(ui.settings.length, 1);
-assert.deepEqual(ui.settings[0].slice(0, 2), [ID, '123']);
-assert.equal(ui.settings[0][2].label, 'Hello Hubcap');
+assert.equal(ui.entries.length, 1);
+assert.equal(ui.entries[0][0], ID);
+assert.equal(ui.entries[0][1].label, 'Hello Hubcap');
 vm.runInContext(script, ui.context);
-assert.equal(ui.settings.length, 1, 'Reinjection must not duplicate settings or timers');
+assert.equal(ui.entries.length, 1, 'Reinjection must not duplicate the registered entry');
 
-ui.settings[0][2].onActivate();
+ui.entries[0][1].onActivate({}); // No appId: must not open a dialog.
+assert.equal(ui.host.confirm, undefined);
+
+ui.entries[0][1].onActivate({ appId: '123' });
 assert.equal(ui.host.confirm.options.confirmLabel, 'Say hello');
 const modal = {};
 assert.equal(ui.host.confirm.callback(modal), false);
@@ -48,6 +49,10 @@ assert.equal(ui.states.at(-1)[1].phase, 'busy');
 assert.equal(ui.sends[0][0], ID);
 assert.equal(ui.sends[0][1], 'hello');
 assert.equal(ui.sends[0][2].appId, '123');
+
+ui.entries[0][1].onActivate({ appId: '456' }); // Already pending for 123: must not start a second request.
+assert.equal(ui.sends.length, 1);
+
 ui.result({ ok: true, state: { message: 'Background state' } }, 'unrelated');
 assert.equal(ui.states.at(-1)[1].phase, 'busy', 'Ignore unrelated background replies');
 ui.result({ ok: true, kind: 'hello', state: { message: 'Hello from a native HubcapUI plugin.' } });
@@ -55,22 +60,18 @@ assert.equal(ui.states.at(-1)[1].phase, 'success');
 assert.equal(ui.states.at(-1)[1].message, 'Hello from a native HubcapUI plugin.');
 assert.equal(ui.timers.size, 0);
 
-ui.settings[0][2].onActivate();
+ui.entries[0][1].onActivate({ appId: '123' });
 ui.host.confirm.callback(modal);
 ui.result({ ok: false, error: { message: 'Native failure' } });
 assert.equal(ui.states.at(-1)[1].phase, 'error');
 assert.equal(ui.states.at(-1)[1].message, 'Native failure');
-ui.settings[0][2].onActivate();
+
+ui.entries[0][1].onActivate({ appId: '123' });
 ui.host.confirm.callback(modal);
 Array.from(ui.timers.values())[0]();
 assert.equal(ui.states.at(-1)[1].title, 'Plugin request timed out');
 const beforeLateReply = ui.states.length;
 ui.result({ ok: true });
-assert.equal(ui.states.length, beforeLateReply);
+assert.equal(ui.states.length, beforeLateReply, 'A reply after its own timeout must be ignored');
 
-ui.changeApp('456');
-assert.deepEqual(ui.settings.at(-2), [ID, '123', null]);
-assert.equal(ui.settings.at(-1)[1], '456');
-ui.changeApp('');
-assert.deepEqual(ui.settings.at(-1), [ID, '456', null]);
-console.log('Plugin template UI checks passed (guards, routing, replies, errors, timeout).');
+console.log('Plugin template UI checks passed (guards, registration, activation, replies, errors, timeout).');
