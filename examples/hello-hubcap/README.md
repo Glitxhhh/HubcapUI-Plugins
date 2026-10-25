@@ -1,6 +1,6 @@
 # Hello Hubcap
 
-A small HubcapUI ABI v1 plugin that adds **Hello Hubcap** to the Library's **Game Settings** menu. Selecting it opens the host's shared confirmation dialog and sends a JSON request to the native DLL. The reply appears in the same dialog. It does not modify game files.
+A small HubcapUI ABI v1 plugin that adds **Hello Hubcap** to a game's per-game actions in Library — the Game Settings dropdown or the native right-click **Manage** submenu, whichever the user has selected in Hubcap Settings (one `host.setManageMenuEntry` call supports both automatically). Selecting it opens the host's shared confirmation dialog and sends a JSON request to the native DLL. The reply appears in the same dialog. It does not modify game files.
 
 From the repository root, with PowerShell 7:
 
@@ -11,7 +11,7 @@ From the repository root, with PowerShell 7:
 
 The build requires Visual Studio C++ Build Tools with the Windows SDK, or a Windows-capable Zig toolchain (`HUBCAP_ZIG` can point to `zig.exe`). Output: `examples/hello-hubcap/dist/hello-hubcap.dll`. Building and testing do not install the example or restart Steam.
 
-To try it manually, fully exit Steam and copy the DLL to `<Steam root>/hubcapui-plugins/hello-hubcap.dll`. Start Steam, enable the plugin system and **Hello Hubcap** in Hubcap Settings, save, and restart when prompted. Select a game in Library and open **Game Settings → Hello Hubcap**. Remove it by disabling and saving, exiting Steam, deleting the example DLL, and starting Steam again.
+To try it manually, fully exit Steam and copy the DLL to `<Steam root>/hubcapui-plugins/hello-hubcap.dll`. Start Steam, enable the plugin system and **Hello Hubcap** in Hubcap Settings, save, and restart when prompted. Right-click a game in Library and open **Manage → Hello Hubcap**, or, with Hubcap Settings > Advanced Settings > "Plugin/Lua Menu" set to "Game Settings," open that game's Game Settings dropdown instead — both show the same entry. Remove it by disabling and saving, exiting Steam, deleting the example DLL, and starting Steam again.
 
 For your own plugin, change the ID, name, description and version in both `src/plugin.json` and `src/plugin.cpp`, the JavaScript ID and guard, and the output DLL name in `scripts/build.ps1`. Use a unique ID rather than the example ID. Extend `handle()` with your own `data.pluginAction` commands; parse arguments from `data.pluginData` using yyjson.
 

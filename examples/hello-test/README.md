@@ -3,7 +3,7 @@
 The SDK test suite plugin — exercises every HubcapUI UI bridge surface beyond the basic one `hello-hubcap` demonstrates, in one place, so there's a single plugin to rebuild and click through whenever the SDK grows further:
 
 - **`host.setPluginSettingsEntry(id, spec)`** — a "Say Hello (Settings)" entry on this plugin's own row in Hubcap Settings.
-- **`host.setManageMenuEntry(id, spec)`** — a "Say Hello (Manage)" entry in the Library grid's native right-click Manage submenu, for whichever game was right-clicked.
+- **`host.setManageMenuEntry(id, spec)`** — a "Say Hello (Manage)" entry for whichever game is selected, shown in the Game Settings dropdown or the Library grid's native right-click Manage submenu depending on which one the user has active in Hubcap Settings > Advanced Settings > "Plugin/Lua Menu" — one registration, both surfaces.
 - **`host->send_notification(title, body)`** — fired natively on every successful round trip from either entry above, showing a real Windows notification. This one is native-only (no JS-side equivalent); it's only callable from a plugin's own `handle()`.
 
 Deliberately does **not** demonstrate `host.setGameSetting` — [`hello-hubcap`](../hello-hubcap) remains the canonical starting-point template for that and for new plugins generally. This plugin is for exercising the newer, additional surfaces, not for copying as a starter.
@@ -19,7 +19,7 @@ The build requires Visual Studio C++ Build Tools with the Windows SDK, or a Wind
 
 To try it manually, fully exit Steam and copy the DLL to `<Steam root>/hubcapui-plugins/hello-test.dll`. Start Steam, enable the plugin system and **Hello Test** in Hubcap Settings, save, and restart when prompted. Then either:
 - Open Hubcap Settings, click the gear next to **Hello Test**, and click **Say Hello (Settings)**, or
-- Right-click any game in your Library grid, hover **Manage**, and click **Say Hello (Manage)**.
+- Right-click any game in your Library grid, hover **Manage**, and click **Say Hello (Manage)** — or, with Hubcap Settings > Advanced Settings > "Plugin/Lua Menu" set to "Game Settings," open that game's Game Settings dropdown instead.
 
 Either path opens a confirm dialog, does a native round trip, and — on success — pops a real Windows notification.
 

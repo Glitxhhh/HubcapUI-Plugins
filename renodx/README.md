@@ -7,9 +7,7 @@ RenoDX automatically detects supported games in your Steam library by matching t
 
 ![RenoDX badges beside games in the Steam library](../docs/images/renodx-library-badges.png)
 
-Open **Game Settings → Enable RenoDX** for a one-click installation workflow. The plugin handles the RenoDX mod, the required ReShade build, and supported profile settings. Once installed, the same menu offers **Remove RenoDX**, as shown below.
-
-![Game Settings showing an installed RenoDX mod and its removal option](../docs/images/renodx-game-settings.png)
+Right-click a compatible game in your Steam library and open **Manage → Enable RenoDX** (or, with Hubcap Settings > Advanced Settings > "Plugin/Lua Menu" set to "Game Settings," that game's Game Settings dropdown instead) for a one-click installation workflow. The plugin handles the RenoDX mod, the required ReShade build, and supported profile settings. Once installed, the same menu offers **Remove RenoDX**.
 
 Mods hosted exclusively on Nexus Mods or Discord may require an additional download step.
 
