@@ -1,0 +1,7 @@
+{
+    "schemaVersion": 1,
+    "id": "hubcap.dlsssuite",
+    "name": "DLSS Suite",
+    "version": "0.1.0",
+    "description": "DLSSTweaks, dlssg-to-fsr3, and DLSS Enabler in one plugin, sharing one Nexus API key entry in Hubcap Settings."
+}

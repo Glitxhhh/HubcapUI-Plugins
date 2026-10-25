@@ -32,6 +32,7 @@ const char* HUBCAP_PLUGIN_CALL handle(const char* request_json)
     std::string action;
     if (requested && strcmp(requested, "state") == 0) action = "libraryRoute";
     else if (requested && strcmp(requested, "list") == 0) action = "optiscalerEnabledList";
+    else if (requested && strcmp(requested, "listInstalledGames") == 0) action = "installedAppIds";
     else if (requested && strcmp(requested, "install") == 0) action = "optiscalerInstall";
     else if (requested && strcmp(requested, "remove") == 0) action = "optiscalerRemove";
     yyjson_doc_free(document);
@@ -47,18 +48,64 @@ void HUBCAP_PLUGIN_CALL free_string(const char* value)
 }
 
 const char k_ui[] = R"HUBCAPPLUGIN((()=>{
-const host=globalThis.HubcapPluginHost,ID='hubcap.optiscaler';if(!host||globalThis.__hubcapOptiScalerPlugin)return;globalThis.__hubcapOptiScalerPlugin=true;
-const ICON='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hp-library-icon" style="display:block;flex:0 0 15px;height:15px;width:15px"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M14 15H9v-5"/><path d="M16 3h5v5"/><path d="M21 3 9 15"/></svg>';
-let currentApp='',pending=null,enabled=new Set(),badgeQueued=false;
-const command=(action,data={})=>host.send(ID,action,{...data,appId:data.appId||currentApp||host.libraryAppId()});
-const applyState=state=>{if(!state?.appId)return;const app=String(state.appId),listed=enabled.has(app),managed=!!(state.optiscalerManaged||state.optiscalerInstalled||listed),show=!!(state.gameInstalled||state.optiscalerAvailable||managed);host.setGameSetting(ID,state.appId,show?{label:managed?'Remove OptiScaler':'Enable OptiScaler',icon:ICON,checked:!!(state.optiscalerInstalled||listed),onActivate:({button})=>{const remove=managed,name=state.gameName||`app ${state.appId}`,gpu=state.optiscalerGpu==='Auto'?`Auto (${state.optiscalerDetectedGpu||'Unknown'} detected)`:state.optiscalerGpu||'Auto';host.showConfirm({kind:remove?'optiscaler-remove':'online-fix',title:remove?'Remove OptiScaler?':'Enable OptiScaler?',message:remove?`Remove the Hubcap-managed OptiScaler installation from ${name}? Existing files Hubcap did not install will be preserved.`:`Install the latest verified OptiScaler release for ${name}? Hubcap will detect the game executable and configure the safest proxy automatically. GPU: ${gpu}. Compatibility varies by game; disable anti-cheat before using graphics injection mods.`,confirmLabel:remove?'Remove':'Enable',cancelLabel:'Cancel'},modal=>{button.disabled=true;host.setModalState(modal,{phase:'busy',title:remove?'Removing OptiScaler...':'Installing OptiScaler...',message:remove?'Removing the Hubcap-managed OptiScaler files.':'Downloading, detecting the game executable and GPU, then configuring OptiScaler.'});pending={state,button,modal,remove};command(remove?'remove':'install',{appId:state.appId});return false})}}:null)};
+const host=globalThis.HubcapPluginHost,ID='hubcap.optiscaler';if(!host||typeof host.setManageMenuEntry!=='function'||globalThis.__hubcapOptiScalerPlugin)return;globalThis.__hubcapOptiScalerPlugin=true;
+let enabled=new Set(),installedGames=new Set(),badgeQueued=false,statePending=null,actionPending=null;
+const command=(action,data={})=>host.send(ID,action,data);
 const assetId=src=>String(src||'').split('/assets/')[1]?.split('/')[0]||'';
 const titleFor=(row,badge)=>{const remembered=badge?.dataset.titleText||'',status=/^(launching|running|updating|downloading|ready to launch|cloud sync|synchronizing|stopping)$/i,candidates=Array.from(row.querySelectorAll('span')).filter(x=>!x.closest('.hp-renodx-plugin-badge,.hp-optiscaler-plugin-badge,.hp-multiplayer-badge')&&x.children.length===0&&x.textContent.trim()&&!status.test(x.textContent.trim()));return candidates.find(x=>x.textContent.trim()===remembered)||candidates.sort((a,b)=>b.textContent.trim().length-a.textContent.trim().length)[0]||null};
 const syncBadges=()=>{badgeQueued=false;for(const doc of host.documents()){if(doc.head&&!doc.getElementById('hubcap-optiscaler-plugin-style')){const style=doc.createElement('style');style.id='hubcap-optiscaler-plugin-style';style.textContent='.hp-optiscaler-plugin-badge{align-items:center;background:#a4d007;border:1px solid #a4d007;border-radius:2px;box-sizing:border-box;color:#1b2838;display:inline-flex;font:700 8px/10px "Motiva Sans",Arial,sans-serif;height:12px;letter-spacing:.35px;margin-left:6px;padding:0 3px;pointer-events:none;white-space:nowrap}';doc.head.append(style)}for(const row of doc.querySelectorAll('[role="gridcell"]')){const id=assetId(row.querySelector('img[src*="/assets/"]')?.getAttribute('src')),old=row.querySelector('.hp-optiscaler-plugin-badge');if(!enabled.has(id)){old?.remove();continue}const title=titleFor(row,old);if(!title)continue;const badge=old||doc.createElement('span');if(!old){badge.className='hp-optiscaler-plugin-badge';badge.textContent='OPTISCALER'}badge.dataset.titleText=title.textContent.trim();badge.title='OptiScaler enabled';const reno=row.querySelector('.hp-renodx-plugin-badge');(reno||title).insertAdjacentElement('afterend',badge)}}};
 const queueBadges=()=>{if(badgeQueued)return;badgeQueued=true;requestAnimationFrame(syncBadges)};
 for(const doc of host.documents()){const start=()=>{if(!doc?.documentElement)return;new MutationObserver(queueBadges).observe(doc.documentElement,{childList:true,subtree:true});queueBadges()};doc?.readyState==='loading'?doc.addEventListener('DOMContentLoaded',start,{once:true}):start()}
-host.onResult(ID,response=>{if(response?.kind==='libraryState'){applyState(response.state||{});return}if(response?.kind==='optiscalerEnabledList'){enabled=new Set((response.state?.appIds||[]).map(String));queueBadges();return}if(!pending)return;const request=pending;pending=null,installed=response.ok&&response.kind==='optiscalerInstalled',removed=response.ok&&response.kind==='optiscalerRemoved',gpu=String(response.state?.gpuVendor||''),proxy=String(response.state?.proxy||''),message=!response.ok?(response.error?.message||'OptiScaler operation failed.'):removed?(response.state?.statusText||'OptiScaler was removed.'):`${response.state?.statusText||'OptiScaler was installed.'}${gpu?` GPU: ${gpu}.`:''}${proxy?` Proxy: ${proxy}.`:''}`;request.button.disabled=false;host.setModalState(request.modal,{phase:response.ok?'success':'error',title:!response.ok?'OptiScaler Failed':removed?'OptiScaler Removed':'OptiScaler Enabled',message,onClose:()=>{command('state',{appId:request.state.appId});command('list')}});if(installed||removed){command('state',{appId:request.state.appId});command('list')}});
-const tick=()=>{const app=host.libraryAppId();if(app===currentApp)return;if(currentApp)host.setGameSetting(ID,currentApp,null);currentApp=app;if(app)command('state',{appId:app})};tick();setInterval(tick,300);command('list');setInterval(queueBadges,1500);
+// Manage submenu entry is global — on activation, fetch live state for whichever
+// game was right-clicked (gameInstalled/optiscalerAvailable/GPU/managed), same as
+// DLSS Suite's migration. resolveLabel reads the `enabled` Set the periodic
+// 'list' call already maintained, so the common "not installed" case defaults
+// to "Enable OptiScaler" immediately without waiting on a click.
+const openForApp=appId=>{
+    if(statePending||actionPending||!appId)return;
+    const request={id:'',timeout:0,appId};
+    statePending=request;
+    request.timeout=setTimeout(()=>{if(statePending===request)statePending=null},8000);
+    request.id=command('state',{appId});
+};
+host.setManageMenuEntry(ID,{
+    label:'Enable OptiScaler',
+    resolveLabel:appId=>enabled.has(String(appId))?'Remove OptiScaler':'Enable OptiScaler',
+    resolveVisible:appId=>installedGames.has(String(appId)),
+    onActivate:({appId})=>openForApp(appId)
+});
+host.onResult(ID,(response,envelope)=>{
+    if(response?.kind==='optiscalerEnabledList'){enabled=new Set((response.state?.appIds||[]).map(String));queueBadges();return}
+    if(response?.kind==='installedAppIds'){installedGames=new Set((response.state?.appIds||[]).map(String));return}
+    if(statePending&&envelope?.replyTo===statePending.id){
+        const request=statePending;statePending=null;clearTimeout(request.timeout);
+        if(!response?.ok)return;
+        const state=response.state||{},appId=String(state.appId||request.appId),listed=enabled.has(appId),managed=!!(state.optiscalerManaged||state.optiscalerInstalled||listed),show=!!(state.gameInstalled||state.optiscalerAvailable||managed);
+        if(!show)return;
+        const name=state.gameName||`app ${appId}`,gpu=state.optiscalerGpu==='Auto'?`Auto (${state.optiscalerDetectedGpu||'Unknown'} detected)`:state.optiscalerGpu||'Auto';
+        host.showConfirm({kind:managed?'optiscaler-remove':'online-fix',title:managed?'Remove OptiScaler?':'Enable OptiScaler?',message:managed?`Remove the Hubcap-managed OptiScaler installation from ${name}? Existing files Hubcap did not install will be preserved.`:`Install the latest verified OptiScaler release for ${name}? Hubcap will detect the game executable and configure the safest proxy automatically. GPU: ${gpu}. Compatibility varies by game; disable anti-cheat before using graphics injection mods.`,confirmLabel:managed?'Remove':'Enable',cancelLabel:'Cancel'},modal=>{
+            host.setModalState(modal,{phase:'busy',title:managed?'Removing OptiScaler...':'Installing OptiScaler...',message:managed?'Removing the Hubcap-managed OptiScaler files.':'Downloading, detecting the game executable and GPU, then configuring OptiScaler.'});
+            const actionRequest={id:'',timeout:0,appId,modal};
+            actionPending=actionRequest;
+            actionRequest.timeout=setTimeout(()=>{if(actionPending!==actionRequest)return;actionPending=null;host.setModalState(modal,{phase:'error',title:'OptiScaler request timed out',message:'Close this dialog and try again.'})},60000);
+            actionRequest.id=command(managed?'remove':'install',{appId});
+            return false;
+        });
+        return;
+    }
+    if(actionPending&&envelope?.replyTo===actionPending.id){
+        const request=actionPending;actionPending=null;clearTimeout(request.timeout);
+        const installed=response?.ok&&response.kind==='optiscalerInstalled',removed=response?.ok&&response.kind==='optiscalerRemoved',gpu=String(response?.state?.gpuVendor||''),proxy=String(response?.state?.proxy||''),message=!response?.ok?(response?.error?.message||'OptiScaler operation failed.'):removed?(response.state?.statusText||'OptiScaler was removed.'):`${response.state?.statusText||'OptiScaler was installed.'}${gpu?` GPU: ${gpu}.`:''}${proxy?` Proxy: ${proxy}.`:''}`;
+        if(response?.ok)enabled[removed?'delete':'add'](request.appId);
+        host.setModalState(request.modal,{phase:response?.ok?'success':'error',title:!response?.ok?'OptiScaler Failed':removed?'OptiScaler Removed':'OptiScaler Enabled',message});
+        command('list');
+        return;
+    }
+});
+command('list');
+command('listInstalledGames');
+setInterval(()=>command('list'),5000);
+setInterval(queueBadges,1500);
 })())HUBCAPPLUGIN";
 }
 

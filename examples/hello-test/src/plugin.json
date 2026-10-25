@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "id": "example.hello-test",
+  "name": "Hello Test",
+  "version": "0.1.0",
+  "description": "Exercises every HubcapUI UI bridge surface in one plugin: setPluginSettingsEntry (Hubcap Settings), setManageMenuEntry (Library grid right-click Manage), and host->send_notification (a real Windows notification). The go-to test suite for verifying the SDK still works end to end whenever it's expanded further.",
+  "order": 1001
+}

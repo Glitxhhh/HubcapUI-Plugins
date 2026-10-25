@@ -18,6 +18,14 @@ struct HubcapPluginHostV1 {
     void (HUBCAP_PLUGIN_CALL* log)(const char* plugin_id, const char* message);
     const wchar_t* (HUBCAP_PLUGIN_CALL* steam_root)();
     const wchar_t* (HUBCAP_PLUGIN_CALL* local_app_data)();
+    // Added after the first three members — check host->size >=
+    // sizeof(HubcapPluginHostV1) (this header's current size) before calling, the
+    // same way any other post-v1 growth of this struct must be guarded, so a plugin
+    // built against this header doesn't crash against an older host built before
+    // this field existed. Shows a real Windows notification via a classic
+    // Shell_NotifyIcon balloon (UTF-8 in, truncated to the OS's balloon text
+    // limits). May be null even when present if a notification couldn't be shown.
+    void (HUBCAP_PLUGIN_CALL* send_notification)(const char* title, const char* body);
 };
 
 struct HubcapPluginV1 {

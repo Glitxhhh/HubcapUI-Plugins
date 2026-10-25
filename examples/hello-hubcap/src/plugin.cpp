@@ -40,13 +40,16 @@ const char k_ui[] = R"HUBCAPPLUGIN((() => {
     const host = globalThis.HubcapPluginHost;
     const ID = 'example.hello-hubcap';
     if (!host || host.version !== 1 || globalThis.__helloHubcapInstalled) return;
-    const required = ['send', 'onResult', 'libraryAppId', 'setGameSetting', 'showConfirm', 'setModalState'];
+    // Game Settings (host.setGameSetting) is retired — every per-game UI
+    // contribution, native or plugin, now lives in Steam's own Manage submenu.
+    const required = ['send', 'onResult', 'showConfirm', 'setModalState', 'setManageMenuEntry'];
     if (!required.every(key => typeof host[key] === 'function')) return;
     globalThis.__helloHubcapInstalled = true;
-    let currentApp = '', pending = null;
+    let pending = null;
 
     host.onResult(ID, (response, envelope) => {
-        // Correlate the reply: background 'state' refreshes must not finish a user's dialog.
+        // Correlate the reply: a Manage entry is global, so a request from one
+        // right-clicked game must not finish a dialog opened for another.
         if (!pending || envelope?.replyTo !== pending.id) return;
         const request = pending;
         pending = null;
@@ -58,36 +61,27 @@ const char k_ui[] = R"HUBCAPPLUGIN((() => {
         });
     });
 
-    const tick = () => {
-        const app = String(host.libraryAppId() || '');
-        if (app === currentApp) return;
-        if (currentApp) host.setGameSetting(ID, currentApp, null);
-        currentApp = app;
-        if (!app) return;
-        host.setGameSetting(ID, app, {
-            label: 'Hello Hubcap', checked: false,
-            onActivate: () => {
-                if (pending) return;
-                host.showConfirm({
-                    title: 'Hello Hubcap', message: 'Send a request to the example native plugin?',
-                    confirmLabel: 'Say hello', cancelLabel: 'Cancel'
-                }, modal => {
-                    host.setModalState(modal, { phase: 'busy', title: 'Hello Hubcap', message: 'Waiting for the plugin...' });
-                    const request = { modal, timeout: 0, id: '' };
-                    pending = request;
-                    request.timeout = setTimeout(() => {
-                        if (pending !== request) return;
-                        pending = null;
-                        host.setModalState(modal, { phase: 'error', title: 'Plugin request timed out', message: 'Close this dialog and try again.' });
-                    }, 10000);
-                    request.id = host.send(ID, 'hello', { appId: app });
-                    return false; // Keep the host's shared dialog open for the async response.
-                });
-            }
-        });
-    };
-    tick();
-    setInterval(tick, 500);
+    host.setManageMenuEntry(ID, {
+        label: 'Hello Hubcap',
+        onActivate: ({ appId }) => {
+            if (pending || !appId) return;
+            host.showConfirm({
+                title: 'Hello Hubcap', message: 'Send a request to the example native plugin?',
+                confirmLabel: 'Say hello', cancelLabel: 'Cancel'
+            }, modal => {
+                host.setModalState(modal, { phase: 'busy', title: 'Hello Hubcap', message: 'Waiting for the plugin...' });
+                const request = { modal, timeout: 0, id: '' };
+                pending = request;
+                request.timeout = setTimeout(() => {
+                    if (pending !== request) return;
+                    pending = null;
+                    host.setModalState(modal, { phase: 'error', title: 'Plugin request timed out', message: 'Close this dialog and try again.' });
+                }, 10000);
+                request.id = host.send(ID, 'hello', { appId });
+                return false; // Keep the host's shared dialog open for the async response.
+            });
+        }
+    });
 })())HUBCAPPLUGIN";
 }
 

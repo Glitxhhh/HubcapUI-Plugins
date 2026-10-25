@@ -4621,6 +4621,36 @@ std::string handle_optiscaler_enabled_list(const std::string& id)
     return reply_ok(id, "optiscalerEnabledList", "{\"appIds\":" + app_ids_json(enabled_ids) + "}");
 }
 
+// Every Steam-installed app (walks appmanifest_*.acf across every library, same
+// pattern as handle_reno_compatible_list's own walk above) — lets the Manage
+// submenu gate "Enable OptiScaler" to installed games without depending on
+// globalThis.appStore, which isn't reliably reachable from SharedJSContext
+// (where that submenu actually renders).
+std::string handle_installed_app_ids(const std::string& id)
+{
+    std::vector<std::string> ids;
+    for (const auto& library : steam_library_roots()) {
+        WIN32_FIND_DATAW data{};
+        HANDLE search = FindFirstFileW(join(library, L"steamapps\\appmanifest_*.acf").c_str(), &data);
+        if (search == INVALID_HANDLE_VALUE) continue;
+        do {
+            const std::wstring filename = data.cFileName;
+            constexpr size_t prefix_length = 12;
+            constexpr size_t suffix_length = 4;
+            if (filename.size() <= prefix_length + suffix_length ||
+                filename.rfind(L"appmanifest_", 0) != 0 ||
+                filename.substr(filename.size() - suffix_length) != L".acf") continue;
+            const std::string app_id = narrow(filename.substr(prefix_length,
+                filename.size() - prefix_length - suffix_length));
+            if (numeric_app_id(app_id)) ids.push_back(app_id);
+        } while (FindNextFileW(search, &data));
+        FindClose(search);
+    }
+    std::sort(ids.begin(), ids.end());
+    ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
+    return reply_ok(id, "installedAppIds", "{\"appIds\":" + app_ids_json(ids) + "}");
+}
+
 std::string handle_list(const std::string& id)
 {
     const Config config = read_config();
@@ -4760,6 +4790,7 @@ std::string hubcap_service_handle(const std::string& payload)
     if (action == "multiplayerModeList") return handle_multiplayer_mode_list(id);
     if (action == "renoCompatibleList") return handle_reno_compatible_list(id);
     if (action == "optiscalerEnabledList") return handle_optiscaler_enabled_list(id);
+    if (action == "installedAppIds") return handle_installed_app_ids(id);
     if (action == "updateStatus") { consume_update_result(); return reply_ok(id, "updateState", update_state_json()); }
     if (action == "updateBootCheck" || action == "updateCheck") {
         if (action == "updateBootCheck") hubcap_service_start_update_boot_check();

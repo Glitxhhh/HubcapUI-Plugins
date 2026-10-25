@@ -1,6 +1,10 @@
 #Requires -Version 7.0
-# Builds the DLSSTweaks HubcapUI plugin. Follows examples/hello-hubcap/scripts/build.ps1's
-# shape (see docs/plugin-development.md) with miniz added for ZIP extraction.
+# Builds the DLSS Suite HubcapUI plugin (DLSSTweaks + dlssg-to-fsr3 + DLSS Enabler
+# merged into one). Follows examples/hello-hubcap/scripts/build.ps1's shape (see
+# docs/plugin-development.md) with miniz added for ZIP extraction.
+param(
+    [switch]$Install
+)
 $ErrorActionPreference = 'Stop'
 $pluginRoot = Split-Path -Parent $PSScriptRoot
 $repo = [IO.Path]::GetFullPath((Join-Path $pluginRoot '..'))
@@ -11,7 +15,7 @@ $thirdParty = Join-Path $repo 'renodx/third_party'
 $objects = Join-Path $pluginRoot 'obj'
 $dist = Join-Path $pluginRoot 'dist'
 New-Item -ItemType Directory -Force -Path $objects,$dist | Out-Null
-$output = Join-Path $dist 'dlsstweaks.dll'
+$output = Join-Path $dist 'dlsssuite.dll'
 
 $pluginObject = Join-Path $objects 'plugin.obj'
 $jsonObject = Join-Path $objects 'yyjson.obj'
@@ -53,5 +57,13 @@ $commands += 'if errorlevel 1 exit /b %errorlevel%'
 $commandFile = Join-Path $objects 'build.cmd'
 Set-Content -LiteralPath $commandFile -Value ($commands -join "`r`n") -Encoding ASCII
 & cmd.exe /c "`"$commandFile`""
-if ($LASTEXITCODE -ne 0) { throw "DLSSTweaks plugin build failed: $LASTEXITCODE" }
-Write-Host "DLSSTweaks plugin written to $output"
+if ($LASTEXITCODE -ne 0) { throw "DLSS Suite plugin build failed: $LASTEXITCODE" }
+
+if ($Install) {
+    if (Get-Process steam -ErrorAction SilentlyContinue) { throw "Close Steam before installing a rebuilt plugin DLL." }
+    $destination = "C:\Program Files (x86)\Steam\hubcapui-plugins"
+    New-Item -ItemType Directory -Force -Path $destination | Out-Null
+    Copy-Item -LiteralPath $output -Destination $destination -Force
+    Write-Host "Installed DLSS Suite plugin to $destination"
+}
+Write-Host "DLSS Suite plugin written to $output"

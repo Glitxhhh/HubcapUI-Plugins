@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <cwctype>
 #include <fstream>
 #include <limits>
@@ -281,6 +282,60 @@ inline std::string read_nexus_api_key(const std::wstring& local_app_data)
     const std::string key = trim(json_string(root, "NexusApiKey"));
     yyjson_doc_free(document);
     return key;
+}
+
+// Writes NexusApiKey into the shared settings.json, preserving every other field already
+// in it (CollectionSyncEnabled, CollectionName, etc.) so this plugin never clobbers
+// settings some other part of Hubcap owns. Safe to call from any of several plugins that
+// all read/write this same shared field: a plain read-modify-write, no cross-plugin
+// coordination needed beyond that.
+inline bool write_nexus_api_key(const std::wstring& local_app_data, const std::string& api_key, std::string& error)
+{
+    if (local_app_data.empty()) { error = "Could not determine the settings folder."; return false; }
+    const std::wstring dir = join(local_app_data, L"HubcapUI");
+    if (!create_directories(dir)) { error = "Could not create the HubcapUI settings folder."; return false; }
+    const std::wstring path = join(dir, L"settings.json");
+
+    std::string existing;
+    read_text_file(path, existing); // missing/unreadable is fine; we start a fresh object below
+
+    yyjson_doc* read_doc = existing.empty() ? nullptr : yyjson_read(existing.data(), existing.size(), 0);
+    yyjson_mut_doc* doc = read_doc ? yyjson_doc_mut_copy(read_doc, nullptr) : nullptr;
+    if (read_doc) yyjson_doc_free(read_doc);
+    if (!doc) doc = yyjson_mut_doc_new(nullptr);
+
+    yyjson_mut_val* root = yyjson_mut_doc_get_root(doc);
+    if (!root || !yyjson_mut_is_obj(root)) {
+        root = yyjson_mut_obj(doc);
+        yyjson_mut_doc_set_root(doc, root);
+    }
+    yyjson_mut_obj_remove_str(root, "NexusApiKey");
+    yyjson_mut_obj_add_strcpy(doc, root, "NexusApiKey", api_key.c_str());
+
+    size_t length = 0;
+    char* json = yyjson_mut_write(doc, YYJSON_WRITE_PRETTY, &length);
+    bool ok = false;
+    if (json) {
+        ok = write_file_atomic(path, json, length);
+        free(json);
+    }
+    yyjson_mut_doc_free(doc);
+    if (!ok) error = "Could not save the Nexus API key.";
+    return ok;
+}
+
+// Validates a Nexus API key against api.nexusmods.com. Returns an empty string on success,
+// or a human-readable error otherwise.
+inline std::string validate_nexus_api_key(const std::string& api_key)
+{
+    if (api_key.empty()) return "Enter a Nexus API key.";
+    if (api_key.size() > 4096 || api_key.find_first_of("\r\n") != std::string::npos) return "That does not look like a valid Nexus API key.";
+    const HttpResult response = http_get_host(L"api.nexusmods.com", L"/v1/users/validate.json", 1024 * 1024, 15000,
+        L"apikey: " + widen(api_key));
+    if (!response.error.empty()) return "Could not validate the Nexus API key: " + response.error;
+    if (response.status == 401 || response.status == 403) return "Nexus rejected that API key.";
+    if (response.status < 200 || response.status >= 300) return "Could not validate the Nexus API key (HTTP " + std::to_string(response.status) + ").";
+    return {};
 }
 
 // -------------------------------------------------------------------------------------------
@@ -626,6 +681,68 @@ inline bool remove_installed_files(const std::wstring& game_dir, const std::wstr
     for (const auto& file : files) ok = delete_file_if_exists(file) && ok;
     ok = delete_file_if_exists(join(game_dir, marker_name)) && ok;
     return had_manifest && ok;
+}
+
+// Lists the immediate top-level folder names present in a zip (e.g. "dll_dbghelp" for an
+// entry "dll_dbghelp/dbghelp.dll"). Used to detect a zip that packages several alternative
+// proxy-name options as sibling folders, rather than one flat set of files.
+inline std::vector<std::string> zip_top_level_folders(const std::string& zip_bytes)
+{
+    std::vector<std::string> folders;
+    mz_zip_archive archive{};
+    if (!mz_zip_reader_init_mem(&archive, zip_bytes.data(), zip_bytes.size(), 0)) return folders;
+    const mz_uint count = mz_zip_reader_get_num_files(&archive);
+    for (mz_uint index = 0; index < count; ++index) {
+        mz_zip_archive_file_stat stat{};
+        if (!mz_zip_reader_file_stat(&archive, index, &stat)) continue;
+        const std::string entry = stat.m_filename;
+        const size_t slash = entry.find('/');
+        if (slash == std::string::npos || slash == 0) continue;
+        const std::string folder = entry.substr(0, slash);
+        if (std::find(folders.begin(), folders.end(), folder) == folders.end()) folders.push_back(folder);
+    }
+    mz_zip_reader_end(&archive);
+    return folders;
+}
+
+// Extracts only the entries under `folder_prefix/` (e.g. "dll_dbghelp"), stripping that
+// prefix, flat into `destination_dir`. Used for a zip that packages several alternative
+// proxy-name options as sibling folders: pick one folder, extract just its files.
+inline bool extract_zip_folder_to_directory(const std::string& zip_bytes, const std::string& folder_prefix,
+    const std::wstring& destination_dir, std::vector<std::wstring>& written, std::string& error)
+{
+    mz_zip_archive archive{};
+    if (!mz_zip_reader_init_mem(&archive, zip_bytes.data(), zip_bytes.size(), 0)) {
+        error = "The downloaded file was not a valid ZIP archive.";
+        return false;
+    }
+    const std::string prefix = folder_prefix + "/";
+    const mz_uint count = mz_zip_reader_get_num_files(&archive);
+    bool ok = true;
+    for (mz_uint index = 0; ok && index < count; ++index) {
+        if (mz_zip_reader_is_file_a_directory(&archive, index)) continue;
+        mz_zip_archive_file_stat stat{};
+        if (!mz_zip_reader_file_stat(&archive, index, &stat)) { error = "Could not read ZIP entry metadata."; ok = false; break; }
+        const std::string entry = stat.m_filename;
+        if (entry.size() <= prefix.size() || entry.compare(0, prefix.size(), prefix) != 0) continue;
+        const std::string relative_entry = entry.substr(prefix.size());
+        if (!safe_zip_entry_name(relative_entry) || stat.m_is_encrypted) { error = "The downloaded ZIP contained an unsafe entry."; ok = false; break; }
+        if (stat.m_uncomp_size > 256ull * 1024 * 1024) { error = "The downloaded ZIP contained an unexpectedly large file."; ok = false; break; }
+        size_t size = 0;
+        void* extracted = mz_zip_reader_extract_to_heap(&archive, index, &size, 0);
+        if (!extracted) { error = "Could not extract a file from the downloaded ZIP."; ok = false; break; }
+        std::wstring relative = widen(relative_entry);
+        std::replace(relative.begin(), relative.end(), L'/', L'\\');
+        const std::wstring target = join(destination_dir, relative);
+        const size_t separator = target.find_last_of(L"\\/");
+        if (separator != std::wstring::npos) create_directories(target.substr(0, separator));
+        const bool wrote = write_file_atomic(target, extracted, size);
+        mz_free(extracted);
+        if (!wrote) { error = "Could not write an extracted file into place."; ok = false; break; }
+        written.push_back(target);
+    }
+    mz_zip_reader_end(&archive);
+    return ok;
 }
 
 } // namespace dlsscommon

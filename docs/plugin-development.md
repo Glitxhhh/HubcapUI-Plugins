@@ -67,6 +67,7 @@ The host currently rejects an initializer that returns `false`, an ABI other tha
 | `log(plugin_id, message)` | Write a diagnostic through Hubcap's runtime logger. |
 | `steam_root()` | Borrow a null-terminated wide string containing the Steam root. |
 | `local_app_data()` | Borrow a null-terminated wide string containing the local application data root. Use a plugin-specific subdirectory for your own data. |
+| `send_notification(title, body)` | Show a real Windows notification (UTF-8 in). Added after the first three members — check `host->size >= sizeof(HubcapPluginHostV1)` (your own compiled header's current size) before calling, same growth pattern as any future native ABI addition. Native-only; there's no JS-side equivalent, so this is only callable from your plugin's own `handle()`, not from `ui_script`. |
 
 ### Ownership and lifetime
 
@@ -130,11 +131,31 @@ Read your operation from `data.pluginAction`, custom arguments from `data.plugin
 | `appId()` / `libraryAppId()` | Get the current app / selected Library app; either may be empty. |
 | `documents()` | Get distinct current and Steam desktop documents available in this context. |
 | `setGameSetting(id, appId, spec)` | Add or update a plugin item in the shared Game Settings menus. Pass `null` to remove your contribution for that app and context. |
+| `setPluginSettingsEntry(id, spec)` | Add or update a plugin item shown on your plugin's own row in Hubcap Settings, behind an expandable button next to its enable toggle. Pass `null` to remove it. Added after the rest of the bridge — feature-detect (`typeof host.setPluginSettingsEntry === 'function'`) before calling it if you want your plugin to still load on an older host. |
+| `setManageMenuEntry(id, spec)` | Add or update a plugin item in the Library grid's native right-click **Manage** submenu, for whichever game was actually right-clicked. Pass `null` to remove it. Added after the rest of the bridge — feature-detect (`typeof host.setManageMenuEntry === 'function'`) before calling it. Confirmed working live, shown correctly positioned above Uninstall. **Not part of the stable ABI contract**: reached by patching a method Steam's own menu system calls internally (a webpack module scan + patching the shared submenu base class's `ShowSubMenu`, not a native hook), so it depends on Steam client internals that can shift between client updates — entries may simply stop appearing after a Steam update until the host catches up, rather than erroring. |
 | `showConfirm(options, onConfirm)` | Use the shared Library confirmation renderer. The callback receives the modal; return `false` to keep it open for progress. |
 | `setModalState(modal, state)` | Render `busy`, `success`, or an error phase with `title`, `message`, and optional `onClose`. |
 | `refreshLibrary(appId)` | Request refreshed Library state. |
 
 A game-setting spec accepts `label`, optional trusted `icon` markup, optional boolean `checked`, optional `disabled`, and `onActivate({state, button, document})`. The host renders both standard and sticky menus, closes the menu before activation, and uses checkbox semantics when `checked` is boolean. Supply plain text labels and avoid interpolating untrusted data into icon markup.
+
+A plugin-settings-entry spec accepts `label`, optional trusted `icon` markup, and `onActivate({button, document})` — no `appId`, `checked`, or `disabled`: these entries are global, not per-game, and not checkbox-styled. Use `setGameSetting` for anything that's actually about the selected game (an install/remove toggle, a per-game option); use `setPluginSettingsEntry` for anything that isn't (an API key, a global preference, a notification mode) instead of adding another unrelated entry to the Game Settings dropdown. Pass your own plugin ID (optionally with a `.suffix`, the same convention `setGameSetting` uses for multiple entries from one plugin, e.g. `ID + '.apikey'`) as `id` — entries are grouped under your plugin's row in Hubcap Settings by that id matching or prefixing your plugin's own catalog id. The entry only ever appears while your plugin is actually enabled; register it once when your script installs, not from a per-app `tick()` loop, since there's no app dimension here. See [`examples/hello-test`](../examples/hello-test) for a complete minimal example.
+
+A Manage-menu-entry spec accepts `label`, optional trusted `icon` markup, and `onActivate({appId})` — `appId` is the game that was right-clicked, resolved by the host on a best-effort basis (it may come back empty; don't assume it's always populated). No `checked`/`disabled`. Register once when your script installs, the same as `setPluginSettingsEntry` — there's no per-app `tick()` loop to drive here either, since the host resolves which game was clicked and hands it to you. This only works from the Library's own injected context; it's a no-op (silently) elsewhere. See [`examples/hello-test`](../examples/hello-test) for a complete minimal example.
+
+### Choosing where a UI contribution goes
+
+Three bridge calls each add your plugin's UI to a different host-owned surface. Picking the wrong one is the single most common mistake — it either clutters a surface meant for something else, or puts a global setting somewhere it can't reasonably live (per-game, re-registered every time a different game is selected, for something that was never about the selected game at all).
+
+| Surface | Call | Scope | Use it for |
+| --- | --- | --- | --- |
+| Game Settings dropdown | `setGameSetting(id, appId, spec)` | Per game — re-register in a `libraryAppId()`-driven `tick()` loop | An action or toggle that's actually about the selected game: install/remove, enable/disable a per-game feature, a per-game status indicator. |
+| Hubcap Settings (your plugin's row) | `setPluginSettingsEntry(id, spec)` | Global — register once at script install | Anything that **isn't** about a specific game: an API key, a global preference, a notification mode, a default used across every game. If it would show the same value no matter which game is selected, it belongs here, not in Game Settings. |
+| Manage submenu (Library grid right-click) | `setManageMenuEntry(id, spec)` | Per the right-clicked game — register once, the host resolves which game and hands you its appId | A per-game action that belongs next to Steam's own file/management actions (Add desktop shortcut, Browse local files, Uninstall, ...) rather than in HubcapUI's own dropdown — typically something file- or install-location-adjacent. Less stable than the other two (see below); don't put anything here a plugin can't work without. |
+
+A concrete test: would you ever want this entry to look different depending on which game is currently selected in Library? If yes and the difference is "is this installed/enabled for THIS game," use `setGameSetting`. If yes and it's "this is the game I right-clicked," use `setManageMenuEntry`. If no — same for every game — use `setPluginSettingsEntry`.
+
+`setPluginSettingsEntry` and `setManageMenuEntry` were added after `setGameSetting`; feature-detect both (`typeof host.setPluginSettingsEntry === 'function'`, `typeof host.setManageMenuEntry === 'function'`) so your plugin still loads with reduced functionality on an older host instead of throwing. See [`examples/hello-test`](../examples/hello-test) for a complete minimal example of both (plus native `host->send_notification`), alongside [`examples/hello-hubcap`](../examples/hello-hubcap) for `setGameSetting`.
 
 Confirmation options accept `title`, `message` (or `renderMessage(element)`), `confirmLabel`, `cancelLabel`, and optional `kind`. Use these bridge helpers to share menu styling and modal behavior. Remove stale app contributions when selection changes. UI source can run in multiple contexts, so a global marker only prevents duplicates within its own context. Check for an empty app ID and detached elements before updating UI.
 
